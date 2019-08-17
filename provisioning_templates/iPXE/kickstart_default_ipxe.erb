@@ -16,13 +16,26 @@ oses:
   <% static = (@host.token.nil? ? '?' : '&') + static_arg -%>
 <% end -%>
 
+<%
+options = []
+hostname = @host.name
+interface = @host.provision_interface.identifier
+mac = @host.provision_interface.mac
+-%>
+
 <% stage2 = host_param('kickstart_liveimg') ? 'inst.stage2=' + @host.operatingsystem.medium_uri(@host).to_s : '' %>
 
-<%- if (@host.operatingsystem.name.match(/Fedora/i) && @host.operatingsystem.major.to_i < 17) || @host.operatingsystem.major.to_i < 7 %>
-<%- net_options = 'ip=${netX/ip} netmask=${netX/netmask} gateway=${netX/gateway} dns=${dns}' -%>
-<%- else -%>
-<%- net_options = 'ip=${netX/ip}::${netX/gateway}:${netX/netmask}:::none nameserver=${dns}' -%>
-<%- end -%>
+<%- if (@host.operatingsystem.name.match(/Fedora/i) && @host.operatingsystem.major.to_i < 17) || @host.operatingsystem.major.to_i < 7
+      options.push('ip=${netX/ip} netmask=${netX/netmask} gateway=${netX/gateway} dns=${dns}')
+      if @host.provision_interface.tag.present? &&  @host.provision_interface.attached_to.present?
+        options.push("vlanid=#{@host.provision_interface.tag} ksdevice=#{@host.provision_interface.identifier}")
+      end
+else
+  options.push("ip=${netX/ip}::${netX/gateway}:${netX/netmask}:#{hostname}:#{interface}:none nameserver=${dns}")
+  if @host.provision_interface.tag.present? &&  @host.provision_interface.attached_to.present?
+    options.push("vlan=#{interface}:#{@host.provision_interface.attached_to} bootdev=#{interface} ifname=#{@host.provision_interface.attached_to}:#{mac}")
+  end
+  end -%>
 
 <%- if @host.operatingsystem.name != 'Fedora' && @host.operatingsystem.major.to_i >= 7 && host_param_true?('fips_enabled') %>
 <%-   fips = 'fips=1' -%>
