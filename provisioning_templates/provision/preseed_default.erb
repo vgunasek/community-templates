@@ -8,9 +8,16 @@ oses:
 %>
 <%
   proxy_string = host_param('http-proxy') ? " http://#{host_param('http-proxy')}:#{host_param('http-proxy-port')}" : ''
+  ansible_enabled = plugin_present?('foreman_ansible')
   salt_enabled = host_param('salt_master') ? true : false
   os_major = @host.operatingsystem.major.to_i
   squeeze_or_older = (@host.operatingsystem.name == 'Debian' && os_major <= 6)
+
+  additional_packages = ['lsb-release']
+  additional_packages << host_param('additional-packages')
+  additional_packages << 'python' if ansible_enabled
+  additional_packages << 'salt-minion' if salt_enabled
+  additional_packages = additional_packages.join(" ").split().uniq().join(" ")
 %>
 # Locale
 d-i debian-installer/locale string <%= host_param('lang') || 'en_US' %>
@@ -23,10 +30,12 @@ d-i console-keymaps-at/keymap seen true
 <% end -%>
 
 <% subnet = @host.subnet -%>
-<% if subnet.respond_to?(:dhcp_boot_mode?) -%>
-  <% dhcp = subnet.dhcp_boot_mode? && !@static -%>
+<% if @static -%>
+  <%- dhcp = false -%>
+<% elsif subnet.nil? -%>
+  <%- dhcp = true -%>
 <% else -%>
-  <% dhcp = !@static -%>
+  <%- dhcp = subnet.dhcp_boot_mode? -%>
 <% end -%>
 <% unless dhcp -%>
 # Static network configuration.
@@ -37,7 +46,7 @@ d-i netcfg/dhcp_options select Configure network manually
 d-i netcfg/disable_dhcp boolean true
 d-i netcfg/get_ipaddress string <%= @host.ip %>
 d-i netcfg/get_netmask string <%= subnet.mask %>
-d-i netcfg/get_nameservers string <%= [subnet.dns_primary,subnet.dns_secondary].reject{|n| n.blank?}.join(' ') %>
+d-i netcfg/get_nameservers string <%= subnet.dns_servers.join(' ') %>
 d-i netcfg/get_gateway string <%= subnet.gateway %>
 d-i netcfg/confirm_static boolean true
 <% end -%>
@@ -91,6 +100,13 @@ user-setup-udeb passwd/make-user boolean false
 
 <% repos = 0 %>
 
+<% @additional_media.each do |medium| -%>
+d-i apt-setup/local<%= repos %>/repository string <%= medium[:url] %> <%= @host.operatingsystem.release_name %>-<%= medium[:name] %> main
+<%= "d-i apt-setup/local#{repos}/comment string #{medium[:comment]}" if medium[:comment] %>
+<%= "d-i apt-setup/local#{repos}/key string #{medium[:gpgkey]}" if medium[:gpgkey] %>
+<% repos +=1 -%>
+<% end -%>
+
 <% if salt_enabled -%>
 <% salt_package = 'salt-minion' -%>
 <% if host_param_true?('enable-saltstack-repo') -%>
@@ -115,7 +131,7 @@ d-i apt-setup/local<%= repos %>/key string http://keyserver.ubuntu.com/pks/looku
 tasksel tasksel/first multiselect minimal, ssh-server, openssh-server
 
 # Install some base packages
-d-i pkgsel/include string <%= salt_package %> lsb-release
+d-i pkgsel/include string <%= additional_packages %>
 d-i pkgsel/update-policy select <%= host_param('preseed-update-policy') || 'unattended-upgrades' %>
 d-i pkgsel/upgrade select <%= host_param('preseed-post-install-upgrade') || 'none' %>
 
@@ -126,11 +142,6 @@ popularity-contest popularity-contest/participate boolean false
 #grub-pc grub-pc/timeout string 10
 d-i grub-installer/only_debian boolean true
 d-i grub-installer/with_other_os boolean true
-<% if host_param('install-disk') -%>
-d-i grub-installer/bootdev string <%= host_param('install-disk') %>
-<% elsif (@host.operatingsystem.name == 'Debian' and @host.operatingsystem.major.to_i >= 8) or (@host.operatingsystem.name == 'Ubuntu' and @host.operatingsystem.major.to_i >= 16) -%>
-d-i grub-installer/bootdev string default
-<% end -%>
 d-i finish-install/reboot_in_progress note
 
 d-i preseed/late_command string wget -Y off <%= @static ? "'#{foreman_url('finish')}&static=true'" : foreman_url('finish') %> -O /target/tmp/finish.sh && in-target chmod +x /tmp/finish.sh && in-target /tmp/finish.sh

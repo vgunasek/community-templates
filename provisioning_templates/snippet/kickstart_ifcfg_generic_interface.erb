@@ -37,15 +37,17 @@ PEERDNS=<%= primary %>
 PEERROUTES=<%= primary %>
 DEFROUTE=<%= primary %>
 <%- if @interface.primary -%>
-<%-   if !@dhcp && @subnet && @subnet.dns_primary.present? -%>
-<%=     "DNS1=\"#{@subnet.dns_primary}\"" %>
-<%-     if @subnet.dns_secondary.present? -%>
-<%=       "DNS2=\"#{@subnet.dns_secondary}\"" %>
+<%-   if !@dhcp && @subnet -%>
+<%-     @subnet.dns_servers.each_index do |index| -%>
+<%=       "DNS#{index +1}=\"#{@subnet.dns_servers[index]}\"" %>
 <%-     end -%>
 <%-   end -%>
 <%- end -%>
-<%- if @interface.virtual? && ((!@subnet.nil? && @subnet.has_vlanid?) || @interface.vlanid.present?) -%>
+<%- if @interface.virtual? && (!@subnet.nil? && (@subnet.has_vlanid? || @interface.vlanid.present?)) -%>
 <%=   "VLAN=yes" %>
+<%-   if @attached_to_bond -%>
+<%=     "NM_CONTROLLED=no" %>
+<%-   end -%>
 <%-   if @interface.identifier.match(/^vlan\d+/) -%>
 <%=     "VLAN_NAME_TYPE=VLAN_PLUS_VID_NO_PAD" %>
 <%=     "PHYSDEV=#{@interface.attached_to}" %>

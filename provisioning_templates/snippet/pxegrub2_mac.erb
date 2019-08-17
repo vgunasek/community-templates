@@ -1,0 +1,12 @@
+<%#
+kind: snippet
+name: pxegrub2_mac
+model: ProvisioningTemplate
+snippet: true
+-%>
+echo "Trying grub.cfg-$net_default_mac"
+source "grub.cfg-$net_default_mac"
+echo "Trying grub2/grub.cfg-$net_default_mac"
+source "grub2/grub.cfg-$net_default_mac"
+echo "Trying /grub2/grub.cfg-$net_default_mac"
+source "/grub2/grub.cfg-$net_default_mac"
