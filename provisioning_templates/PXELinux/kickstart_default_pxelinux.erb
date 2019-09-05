@@ -38,12 +38,12 @@ oses:
       # old Anacoda found in Fedora 16 or RHEL 6 and older
       dns_servers = subnet.dns_servers.join(',')
       options.push("ip=#{ip}", "netmask=#{mask}", "gateway=#{gw}", "dns=#{dns_servers}")
-      if iface.tag.present? &&  iface.attached_to.present?
+      if iface.tag.present? && iface.attached_to.present?
         options.push("vlanid=#{iface.tag} ksdevice=#{iface.identifier} rd.bootif=0")
       end
     else
       options.push("ip=#{ip}::#{gw}:#{mask}:#{hostname}:#{iface.identifier}:none")
-      if iface.tag.present? &&  iface.attached_to.present?
+      if iface.tag.present? && iface.attached_to.present?
         options.push("vlan=#{iface.identifier}:#{iface.attached_to} bootdev=#{iface.identifier} ifname=#{iface.attached_to}:#{mac} rd.bootif=0")
       end
       subnet.dns_servers.each { |server|
