@@ -32,7 +32,7 @@ mac = @host.provision_interface.mac
       options.push("vlanid=#{iface.tag} ksdevice=#{iface.identifier}")
     end
   else
-    options.push("ip=${netX/ip}::${netX/gateway}:${netX/netmask}:#{hostname}:#{interface}:none nameserver=${dns}")
+    options.push("ip=${netX/ip}::${netX/gateway}:${netX/netmask}:#{hostname}:#{iface}:none nameserver=${dns}")
     if iface.tag.present? && iface.attached_to.present?
       options.push("vlan=#{iface.identifier}:#{iface.attached_to} bootdev=#{iface.identifier} ifname=#{iface.attached_to}:#{mac}")
     end
